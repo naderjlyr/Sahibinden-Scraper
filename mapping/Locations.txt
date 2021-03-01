@@ -1,0 +1,29 @@
+Wordpress ids for locations:
+
+Locations       ID In Wordpress     ID In SAHIBINDEN
+
+Arnavutköy      121                 420
+Avcılar         123                 429
+Bağcılar        124                 432
+Bahçelievler    125                 431
+Bakırköy        126                 416
+Başakşehir      127                 434
+Bayrampaşa      128                 417
+Beşiktaş        129                 418
+Beylikdüzü      131                 435
+Beyoğlu         132                 419
+Büyükçekmece    133                 450
+Çatalca         134                 451
+Esenler         136                 433
+Esenyurt        137                 436
+Eyüpsultan      138                 421
+Fatih           139                 422
+Gaziosmanpaşa   140                 423
+Güngören        141                 430
+Kağıthane       143                 424
+Küçükçekmece    145                 425
+Sarıyer         149                 426
+Silivri         150                 452
+Sultangazi      152                 437
+Şişli           154                 427
+Zeytinburnu     239                 428
