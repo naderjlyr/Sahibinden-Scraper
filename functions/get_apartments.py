@@ -11,11 +11,12 @@ from functions.get_single_apartment import single_apartment
 def get_apartments(pagingOffset):
     # getting the page offset
     target_list_url = ''
-    for counter, offset in enumerate(range(0,int(pagingOffset),50)):
+    for counter, offset in enumerate(range(0, int(pagingOffset), 50)):
         if counter == 0:
-            target_list_url = "https://www.sahibinden.com/en/for-sale/owner?pagingSize=50&address_region=1&viewType=List&price_min=300000&address_town=435&address_town=436"
+            target_list_url = "https://www.sahibinden.com/en/for-sale/owner?pagingSize=50&address_region=1&viewType=List&price_min=300000&address_town=431&address_city=34"
         else:
-            target_list_url = "https://www.sahibinden.com/en/for-sale/owner?pagingOffset="+str(offset)+"&pagingSize=50&address_region=1&viewType=List&price_min=300000&address_town=435&address_town=436"
+            target_list_url = "https://www.sahibinden.com/en/for-sale/owner?pagingOffset=" + str(
+                offset) + "&pagingSize=50&address_region=1&viewType=List&price_min=300000&address_town=431&address_city=34"
         payload = {}
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -58,9 +59,11 @@ def get_apartments(pagingOffset):
                 apartment_date_datetime = datetime.strptime(apartment_date_string, '%d %B %Y')
                 apartment_location_district = apartment_item.find("td", class_="searchResultsLocationValue").contents[
                     0].strip()
+                print(apartment_location_district)
                 my_apartment[apartment_id] = {"title": apartment_title, "price": apartment_price,
                                               "date": str(apartment_date_datetime),
-                                              "location": location[apartment_location_district]}
+                                              "location": apartment_location_district
+                                              }
                 print("New Apartment Found with id : ", apartment_id)
             # Writing data into a json file.
         with open("data.json", "r+", encoding="utf-8") as json_file:

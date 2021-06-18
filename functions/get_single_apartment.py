@@ -10,26 +10,21 @@ import requests
 from bs4 import BeautifulSoup
 from random_user_agent.params import SoftwareName, OperatingSystem
 from random_user_agent.user_agent import UserAgent
+from functions.check_file_header import checkFileHeader
+from functions.get_images import getImages
+from functions.get_info import getInfo
+from functions.write_to_file import writeFile
 
 
 class FlowException(Exception):
     pass
 
+
 def single_apartment():
     header_added = False
-    with open(os.path.dirname(__file__) + '/../data.json', encoding='utf-8') as readData:
-        jsonData = list(json.loads(readData.read()).keys())
-        try:
-            currentData = pd.read_csv('file.csv', usecols=["ad"]).stack().to_numpy().tolist()
-            if currentData:
-                for item in currentData:
-                    if str(item) in jsonData:
-                        print("found!")
-                        jsonData.remove(str(item))
-                        header_added = True
-        except Exception as e:
-            pass
+    jsonData, header_added = checkFileHeader(header_added)
     apartment_options = defaultdict(dict)
+    # print(header_added)
     for apt_number, ad_post_id in enumerate(jsonData):
         try:
             software_names = [SoftwareName.CHROME.value]
@@ -58,10 +53,9 @@ def single_apartment():
             }
             try:
                 response = requests.request("GET", url, headers=headers)
+                print(headers)
                 soup = BeautifulSoup(response.text, 'lxml')
                 apartment_content = soup.find("div", {"id": "classifiedDetail"})
-                # Extracting Image URLs
-                # print(apt_number,ad_post_id)
             except Exception as e:
                 trace_back = sys.exc_info()[2]
                 line = trace_back.tb_lineno
@@ -69,97 +63,37 @@ def single_apartment():
                                     "Process Exception in line {}".format(line),
                                     e)
             try:
-                apartment_images = apartment_content.find('div', {'class': 'classifiedDetailMainPhoto'})
-                children = apartment_images.findChildren('label', {"id": lambda x: x and x.startswith('label_images')},
-                                                         recursive=False)[:4]
-                image_urls_list = []
-                # print(ad_post_id)
-                for counter, image in enumerate(children):
-                    image_urls = image.find('img', {'alt': True})
-                    if image_urls.has_attr('class'):
-                        image_urls['data-src'] = image_urls['src']
-                    image_urls_list.append(image_urls['data-src'].replace("x5_","big_"))
-                image_urls_string = ','.join(image_urls_list)
-                print(image_urls_string)
+                if apartment_content is not None:
+                    apartment_options = {
+                        ad_post_id: {"location": "", "ad": "", "ad_date": "", "real_estate": "", "real_estate_type": "",
+                                     "m²_(brüt)": "", "m²_(net)": "", "number_of_rooms": "",
+                                     "age_of_building": "", "floor_number": "", "number_of_floors": "",
+                                     "heating": "", "number_of_bathrooms": "", "balcony": "",
+                                     "furnished": "", "user_status": "",
+                                     "within_a_building_complex": "", "apartment_complex_name": "",
+                                     "dues": "", "eligible_for_bank_credit": "", "from": "",
+                                     "available_for_viewing_with_video_call": "", "exchangeable": "",
+                                     "Frontage": "", "Interior Properties": "",
+                                     "External Properties": "", "Nearliness ": "", "Transportation": "",
+                                     "Scene": "", "Residence Type": "", "Accessible Housing": "",
+                                     "price": "", "map_lat": "", "map_lon": "", "owner_name": "",
+                                     "owner_phone": "", "owner_registration_date": "", "images": "", }}
+                    image_urls_string = getImages(apartment_content, ad_post_id)
             except Exception as e:
                 trace_back = sys.exc_info()[2]
                 line = trace_back.tb_lineno
-                print("couldn't get the Images,the add is either deleted or doesn't have pictures!")
-                pass
-
+                raise FlowException("getImages has faced a problem, check it out!")
             try:
-                # Extracting Contents
-                apartment_title_price = apartment_content.findChild('div', class_="classifiedInfo")
-                apartment_location_names = apartment_title_price.find("h2").findChildren("a")
-                del apartment_location_names[0]
-                location_string = ','.join(
-                    [location_name.text.strip().replace('.', '') for location_name in apartment_location_names])
-                apartment_options[ad_post_id]["location"] = location_string
-                # print(apartment_options)
-                apartment_price = apartment_title_price.find('input',
-                                                             {"id": "priceHistoryFlag"}).previousSibling.strip().replace(
-                    ' TL',
-                    '').replace(
-                    ',', '')
-                apartment_details = apartment_content.find('ul', class_="classifiedInfoList")
-                apartment_owner = apartment_content.find('div', class_="classifiedUserContent")
-                owner_registration_date = apartment_owner.find("p", class_="userRegistrationDate").findChild(
-                    "span").text.strip()
-                # print(owner_registration_date)
-                apartment_owner_name = apartment_owner.findChild('h5').text
-
-                try:
-                    apartment_owner_phone = apartment_owner.find('span', class_="pretty-phone-part").text.replace('(',
-                                                                                                                  '').replace(
-                        ')', '').replace(' ', '')
-                except:
-                    apartment_owner_phone = ''
-                apartment_location_map = apartment_content.find("div", {"data-lat": True})
-                apartment_latitude = apartment_location_map['data-lat']
-                apartment_longitude = apartment_location_map['data-lon']
-                items = apartment_details.findChildren("li", {"class": False}, recursive=False)
-                apartment_features = {}
-                for item in items:
-                    item_title = item.find("strong").text.strip().replace(' ', '_').lower()
-                    item_value = item.find("span").text.lower().strip()
-                    apartment_features.update({item_title: item_value})
-                    apartment_options[ad_post_id][item_title] = item_value
-                # print(apartment_options)
-                apartment_amenities_soup = apartment_content.find('div', {"id": "classifiedProperties"})
-                apartment_amenities_headings = apartment_amenities_soup.find_all("h3")
-                headings = {}
-                for heading in apartment_amenities_headings:
-                    heading = heading.text
-                    headings.update({heading: ''})
-                for item_h in headings:
-                    amenity_ul = apartment_amenities_soup.find("h3", text=item_h).find_next_sibling("ul").findChildren("li",
-                                                                                                                       class_="selected")
-                    amenity_ul_string = ','.join([item_li.text.strip() for item_li in amenity_ul])
-                    apartment_options[ad_post_id][item_h] = amenity_ul_string
-                apartment_options[ad_post_id]["price"] = int(apartment_price)
-                apartment_options[ad_post_id]["map_lat"] = apartment_latitude
-                apartment_options[ad_post_id]["map_lon"] = apartment_longitude
-                apartment_options[ad_post_id]["owner_name"] = apartment_owner_name
-                apartment_options[ad_post_id]["owner_phone"] = apartment_owner_phone
-                apartment_options[ad_post_id]["owner_registration_date"] = owner_registration_date
-                apartment_options[ad_post_id]["images"] = image_urls_string
-                # print(apartment_options)
-                header_names = list(apartment_options[ad_post_id].keys())
-                # print(apartment_options)
-                with open(os.path.dirname(__file__) + '/../file.csv', mode="a+", encoding='utf-8', newline='') as writeFile:
-                    dict_writer = csv.DictWriter(writeFile, header_names)
-                    if not header_added:
-                        dict_writer.writeheader()
-                        header_added = True
-                    dict_writer.writerow(apartment_options[ad_post_id])
-                    print(ad_post_id, "is being written to the file.","waiting for 20-100, and going for the rest:")
+                if apartment_content is not None:
+                    apartment_options_final = getInfo(response, apartment_content, apartment_options, ad_post_id,
+                                                      image_urls_string)
+                    header_names = list(apartment_options[ad_post_id].keys())
+                    writeFile(header_names, header_added, apartment_options_final, ad_post_id)
                     time.sleep(randint(100, 200))
             except Exception as e:
                 trace_back = sys.exc_info()[2]
                 line = trace_back.tb_lineno
-                print("couldn't get the ad,the add is deleted!",ad_post_id)
-                time.sleep(randint(100, 200))
-                pass
+                raise FlowException("couldn't get the apartment info!check the related file.")
         except Exception as e:
             trace_back = sys.exc_info()[2]
             line = trace_back.tb_lineno
